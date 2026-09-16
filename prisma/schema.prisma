@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  CASHIER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE
+  OTHER
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  VOID
+  REFUNDED
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  currency  String   @default("USD")
+  timezone  String   @default("UTC")
+  logo      String?
+  users     User[]
+  products  Product[]
+  customers Customer[]
+  invoices  Invoice[]
+  settings  Setting[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CASHIER)
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id            String  @id @default(cuid())
+  taxRate       Float   @default(0.0)
+  footerText    String?
+  storeId       String  @unique
+  store         Store   @relation(fields: [storeId], references: [id])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children  Category[] @relation("SubCategories")
+  products  Product[]
+}
+
+model Product {
+  id            String      @id @default(cuid())
+  name          String
+  sku           String      @unique
+  barcode       String?
+  price         Float
+  cost          Float       @default(0)
+  stockAlert    Int         @default(0)
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  storeId       String
+  store         Store       @relation(fields: [storeId], references: [id])
+  inventory     Inventory?
+  invoiceItems  InvoiceItem[]
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  points    Int       @default(0)
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  cashierId     String
+  cashier       User          @relation(fields: [cashierId], references: [id])
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  subtotal      Float
+  taxAmount     Float         @default(0)
+  discount      Float         @default(0)
+  totalAmount   Float
+  paymentMethod PaymentMethod @default(CASH)
+  status        InvoiceStatus @default(PAID)
+  items         InvoiceItem[]
+  createdAt     DateTime      @default(now())
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Float
+  discount  Float   @default(0)
+  total     Float
+}
